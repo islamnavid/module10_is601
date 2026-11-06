@@ -15,12 +15,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY requirements.txt .
 
-RUN python -m pip install --no-cache-dir --upgrade \
-    "pip>=26.3" \
-    "setuptools>=78.1.1" \
+RUN python -m pip install --no-cache-dir --upgrade pip \
     && python -m pip install --no-cache-dir -r requirements.txt \
-    && python -m pip install --no-cache-dir --upgrade "setuptools>=78.1.1"
-
+    && python -m pip install --no-cache-dir --upgrade \
+       "setuptools>=78.1.1" \
+       "cryptography>=50.0.2" \
+    && python -m pip check
+RUN rm -f /usr/local/lib/python3.11/site-packages/pip/_vendor/bom.cdx.json
 COPY . .
 
 EXPOSE 8000

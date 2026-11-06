@@ -8,12 +8,12 @@ ENV PYTHONUNBUFFERED=1
 
 RUN apt-get update && \
     apt-get upgrade -y && \
-    apt-get install -y --no-install-recommends gcc libpq-dev && \
+    apt-get install -y --no-install-recommends libpq5 && \
     rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
 
-RUN python -m pip install --no-cache-dir --upgrade pip setuptools wheel && \
+RUN python -m pip install --no-cache-dir --upgrade pip "setuptools>=78.1.1" wheel && \
     python -m pip install --no-cache-dir -r requirements.txt && \
     python -m pip check
 

@@ -11,6 +11,9 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    container:
+      image: mcr.microsoft.com/playwright/python:v1.48.0-noble
+
     services:
       postgres:
         image: postgres:16
@@ -18,8 +21,6 @@ jobs:
           POSTGRES_USER: user
           POSTGRES_PASSWORD: password
           POSTGRES_DB: mytestdb
-        ports:
-          - 5432:5432
         options: >-
           --health-cmd "pg_isready -U user -d mytestdb"
           --health-interval 10s
@@ -27,27 +28,19 @@ jobs:
           --health-retries 5
 
     env:
-      DATABASE_URL: postgresql://user:password@localhost:5432/mytestdb
+      DATABASE_URL: postgresql://user:password@postgres:5432/mytestdb
       PYTHONPATH: ${{ github.workspace }}
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: pip
-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
-
-      - name: Install Playwright Chromium
-        run: |
-          python -m playwright install --with-deps chromium
+          python -m pip check
 
       - name: Run unit tests
         run: |
@@ -60,8 +53,9 @@ jobs:
       - name: Start FastAPI server
         run: |
           python -m uvicorn main:app \
-            --host 127.0.0.1 \
+            --host 0.0.0.0 \
             --port 8000 > /tmp/fastapi.log 2>&1 &
+
           echo $! > /tmp/fastapi.pid
 
           for i in $(seq 1 30); do
@@ -69,10 +63,12 @@ jobs:
               echo "FastAPI server is ready"
               exit 0
             fi
+
             if ! kill -0 "$(cat /tmp/fastapi.pid)" 2>/dev/null; then
               cat /tmp/fastapi.log
               exit 1
             fi
+
             sleep 1
           done
 
@@ -97,7 +93,8 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build Docker image
-        run: docker build -t app:test .
+        run: |
+          docker build -t app:test .
 
       - name: Scan Docker image
         uses: aquasecurity/trivy-action@master

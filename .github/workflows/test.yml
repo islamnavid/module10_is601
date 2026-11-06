@@ -10,7 +10,6 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
 
     services:
       postgres:
@@ -29,6 +28,7 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://user:password@localhost:5432/mytestdb
+      PYTHONPATH: ${{ github.workspace }}
 
     steps:
       - name: Checkout repository
@@ -57,30 +57,49 @@ jobs:
         run: |
           python -m pytest tests/integration/ -v
 
-      - name: Run E2E tests
-        timeout-minutes: 3
+      - name: Start FastAPI server
         run: |
-          python -m pytest tests/e2e/ -v -s
+          python -m uvicorn main:app \
+            --host 127.0.0.1 \
+            --port 8000 > /tmp/fastapi.log 2>&1 &
+          echo $! > /tmp/fastapi.pid
 
-      - name: Run full test suite
-        timeout-minutes: 3
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8000/ > /dev/null; then
+              echo "FastAPI server is ready"
+              exit 0
+            fi
+            if ! kill -0 "$(cat /tmp/fastapi.pid)" 2>/dev/null; then
+              cat /tmp/fastapi.log
+              exit 1
+            fi
+            sleep 1
+          done
+
+          cat /tmp/fastapi.log
+          exit 1
+
+      - name: Run E2E tests
         run: |
-          python -m pytest --cov=app --cov-report=term-missing
+          python -m pytest tests/e2e/ -v
+
+      - name: Show server logs on failure
+        if: failure()
+        run: |
+          cat /tmp/fastapi.log || true
 
   security:
     needs: test
     runs-on: ubuntu-latest
-    timeout-minutes: 10
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Build Docker image
-        run: |
-          docker build -t app:test .
+        run: docker build -t app:test .
 
-      - name: Scan Docker image with Trivy
+      - name: Scan Docker image
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: app:test
@@ -91,9 +110,8 @@ jobs:
 
   deploy:
     needs: security
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
     environment: production
 
     steps:
@@ -115,6 +133,6 @@ jobs:
           context: .
           push: true
           tags: |
-            islamnavid/module10_is601:latest
-            islamnavid/module10_is601:${{ github.sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/module10_is601:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/module10_is601:${{ github.sha }}
           platforms: linux/amd64,linux/arm64

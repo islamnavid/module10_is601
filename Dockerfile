@@ -7,10 +7,13 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    libpq-dev \
-    curl \
+# Update Debian packages to receive security fixes.
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends \
+       gcc \
+       libpq-dev \
+       curl \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
@@ -21,7 +24,9 @@ RUN python -m pip install --no-cache-dir --upgrade pip \
        "setuptools>=78.1.1" \
        "cryptography>=50.0.2" \
     && python -m pip check
+
 RUN rm -f /usr/local/lib/python3.11/site-packages/pip/_vendor/bom.cdx.json
+
 COPY . .
 
 EXPOSE 8000

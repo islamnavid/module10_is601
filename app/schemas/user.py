@@ -1,10 +1,16 @@
+
+# app/schemas/user.py
+
 from typing import Optional
 from uuid import UUID
 from datetime import datetime
+
 from pydantic import BaseModel, EmailStr, ConfigDict
 
-class UserResponse(BaseModel):
-    """Schema for user response data"""
+
+class UserRead(BaseModel):
+    """Safe user response schema without password information."""
+
     id: UUID
     username: str
     email: EmailStr
@@ -15,19 +21,24 @@ class UserResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    model_config = ConfigDict(from_attributes=True)  # Enable mapping from ORM objects
+    model_config = ConfigDict(from_attributes=True)
+
+
+# Preserve compatibility with existing tests and code.
+UserResponse = UserRead
 
 
 class Token(BaseModel):
-    """Schema for authentication token response"""
+    """Authentication token response."""
+
     access_token: str
     token_type: str = "bearer"
-    user: UserResponse
+    user: UserRead
 
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+                "access_token": "example.jwt.token",
                 "token_type": "bearer",
                 "user": {
                     "id": "123e4567-e89b-12d3-a456-426614174000",
@@ -38,20 +49,22 @@ class Token(BaseModel):
                     "is_active": True,
                     "is_verified": False,
                     "created_at": "2025-01-01T00:00:00",
-                    "updated_at": "2025-01-08T12:00:00",
-                },
+                    "updated_at": "2025-01-08T12:00:00"
+                }
             }
         }
     )
 
 
 class TokenData(BaseModel):
-    """Schema for JWT token payload"""
+    """JWT token payload."""
+
     user_id: Optional[UUID] = None
 
 
 class UserLogin(BaseModel):
-    """Schema for user login"""
+    """Login request schema."""
+
     username: str
     password: str
 
@@ -59,7 +72,7 @@ class UserLogin(BaseModel):
         json_schema_extra={
             "example": {
                 "username": "johndoe123",
-                "password": "SecurePass123",
+                "password": "SecurePass123"
             }
         }
     )

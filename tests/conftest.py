@@ -57,7 +57,7 @@ def create_fake_user() -> Dict[str, str]:
         "last_name": fake.last_name(),
         "email": fake.unique.email(),
         "username": fake.unique.user_name(),
-        "password": fake.password(length=12)
+        "password_hash": User.hash_password(fake.password(length=12))
     }
 
 
@@ -174,9 +174,11 @@ def db_session(request) -> Generator[Session, None, None]:
 
 @pytest.fixture
 def fake_user_data() -> Dict[str, str]:
-    """Provide fake user information."""
-
-    return create_fake_user()
+    """Provide valid registration data."""
+    data = create_fake_user()
+    data["password"] = "TestPass123"
+    data.pop("password_hash", None)
+    return data
 
 
 @pytest.fixture

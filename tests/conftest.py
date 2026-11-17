@@ -139,13 +139,20 @@ def setup_test_database(request):
         logger.info("Database cleanup completed.")
 
 
+
 @pytest.fixture
 def db_session(request) -> Generator[Session, None, None]:
-    """Provide a database session for each test."""
+    """Provide a clean database session for each test."""
 
     session = TestingSessionLocal()
 
     try:
+        # Ensure each test starts with an empty database.
+        if not request.config.getoption("--preserve-db"):
+            for table in reversed(Base.metadata.sorted_tables):
+                session.execute(table.delete())
+            session.commit()
+
         yield session
 
     finally:
@@ -153,7 +160,6 @@ def db_session(request) -> Generator[Session, None, None]:
 
         try:
             if not preserve_db:
-
                 for table in reversed(Base.metadata.sorted_tables):
                     logger.info("Cleaning table: %s", table.name)
                     session.execute(table.delete())
@@ -166,6 +172,7 @@ def db_session(request) -> Generator[Session, None, None]:
 
         finally:
             session.close()
+
 
 
 # ==========================================================
